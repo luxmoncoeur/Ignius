@@ -1,5 +1,5 @@
 allowBuilds:
-  unrs-resolver: set this to true or false
+  unrs-resolver: true
 minimumReleaseAgeExclude:
   - '@next/env@16.4.2'
   - '@next/eslint-plugin-next@16.4.2'
@@ -13,3 +13,6 @@ minimumReleaseAgeExclude:
   - '@next/swc-win32-x64-msvc@16.4.2'
   - eslint-config-next@16.4.2
   - next@16.4.2
+  - framer-motion@14.13.0
+  - motion-dom@14.13.0
+  - motion@14.13.0
