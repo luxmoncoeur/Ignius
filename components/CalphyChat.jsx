@@ -1,14 +1,38 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import {
+  ArrowUp,
+  ArrowUpRight,
+  BookOpen,
+  Check,
+  Copy,
+  Globe,
+  Info,
+  RotateCcw,
+  Square,
+  SquarePen,
+  X,
+} from "lucide-react";
 import CalphyMascot from "@/components/CalphyMascot";
 import { useUser } from "@/components/UserContext";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { LESSON_BY_SLUG, LESSONS } from "@/lib/lessons";
+import useCinderChat from "@/lib/useCinderChat";
+import { cn } from "@/lib/utils";
 
 function normalizeMathDelimiters(text) {
   return text
@@ -18,37 +42,233 @@ function normalizeMathDelimiters(text) {
     .replace(/\^\\circ!?([CF])/g, "{}^\\circ\\!$1");
 }
 
-const suggestions = ["How do I go to simulations?", "Preview Lesson 5", "Convert 25°C to °F"];
+// suggestion chips follow the page you're on
+function suggestionsFor(pathname) {
+  const slug = pathname.match(/^\/lessons\/([^/]+)/)?.[1];
+  const lesson = slug && LESSON_BY_SLUG[slug];
+  if (lesson) {
+    const next = LESSONS.find((item) => item.n === lesson.n + 1);
+    return [
+      `Explain ${lesson.title.toLowerCase()} simply`,
+      `What formulas are in Lesson ${lesson.n}?`,
+      next ? `Preview Lesson ${next.n}` : "Take me to the quizzes",
+    ];
+  }
+  if (pathname.startsWith("/simulations")) {
+    return ["Which simulation shows conduction?", "What is a heating curve?", "Convert 300 K to °C"];
+  }
+  if (pathname.startsWith("/formulas")) {
+    return ["When do I use Q = mcΔT?", "What is latent heat?", "Convert 98.6°F to °C"];
+  }
+  return ["What is specific heat?", "Preview Lesson 5", "Convert 25°C to °F"];
+}
 
 // idle thought-bubble lines; "…" beats in between make Cinder look like it's thinking
-const idleHints = ["Ask Cinder", "Stuck on a formula?", "Need °C → °F fast?", "Want a lesson preview?", "Curious about heat?"];
+const IDLE_HINTS = ["Ask Cinder", "Stuck on a formula?", "Need °C → °F fast?", "Want a lesson preview?", "Curious about heat?"];
+
+function IconAction({ label, onClick, children }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 rounded-lg text-muted-foreground hover:text-ink"
+          onClick={onClick}
+          aria-label={label}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked */
+    }
+  };
+  return (
+    <IconAction label={copied ? "Copied" : "Copy answer"} onClick={copy}>
+      {copied ? <Check className="text-good" /> : <Copy />}
+    </IconAction>
+  );
+}
+
+function Markdown({ text, onLink }) {
+  return (
+    <div className="cinder-md text-[0.95rem] leading-relaxed text-ink-soft">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        skipHtml
+        components={{
+          a: ({ href, children }) =>
+            href?.startsWith("/") && !href.startsWith("//") ? (
+              <Link href={href} onClick={onLink} className="font-semibold text-cool underline underline-offset-2">
+                {children}
+              </Link>
+            ) : (
+              <span>{children}</span>
+            ),
+          img: ({ alt }) => <span>{alt}</span>,
+          table: ({ children }) => (
+            <div className="my-2 overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">{children}</table>
+            </div>
+          ),
+        }}
+      >
+        {normalizeMathDelimiters(text)}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 py-1" role="status" aria-label="Cinder is thinking">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1.5 animate-bounce rounded-full bg-ember"
+          style={{ animationDelay: `${i * 0.15}s` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function AssistantMessage({ message, last, busy, onRetry, onConfirm, onLink }) {
+  const streaming = busy && last && !message.pending;
+  return (
+    <div className="flex gap-2.5">
+      <span className="mt-0.5 shrink-0" aria-hidden="true">
+        <CalphyMascot size={28} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="rounded-2xl rounded-tl-md border bg-surface px-3.5 py-2.5 shadow-xs">
+          {message.pending ? (
+            <TypingDots />
+          ) : (
+            <>
+              <Markdown text={message.text} onLink={onLink} />
+              {streaming && (
+                <span className="ml-0.5 inline-block h-4 w-1.5 translate-y-0.5 animate-pulse rounded-sm bg-ember" aria-hidden="true" />
+              )}
+            </>
+          )}
+
+          {message.notice && (
+            <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-cool-tint px-2.5 py-1.5 text-xs text-ink-soft" role="status">
+              <Info className="mt-px size-3.5 shrink-0 text-cool" aria-hidden="true" />
+              {message.notice}
+            </p>
+          )}
+
+          {message.confirmation && (
+            <div className="mt-3 rounded-xl bg-surface-2 p-3" role="group" aria-label="Confirm external web search">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                <Globe className="size-4" aria-hidden="true" /> Search Google for “{message.confirmation.query}”?
+              </p>
+              <p className="mt-1 text-xs text-ink-soft">{message.confirmation.description}</p>
+              <div className="mt-3 flex justify-end gap-2">
+                <Button size="sm" variant="outline" onClick={() => onConfirm(message.id, false)}>
+                  No thanks
+                </Button>
+                <Button size="sm" onClick={() => onConfirm(message.id, true)}>
+                  Search the web
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {message.externalSearchUrl && (
+            <a
+              href={message.externalSearchUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-cool"
+            >
+              Open web search <ArrowUpRight className="size-3.5" aria-hidden="true" />
+            </a>
+          )}
+        </div>
+
+        {(message.sources?.length > 0 || message.links?.length > 0) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {message.sources?.map((source) => (
+              <Link
+                key={`s-${source.href}`}
+                href={source.href}
+                onClick={onLink}
+                className="inline-flex items-center gap-1 rounded-full border bg-surface px-2.5 py-1 text-xs font-semibold text-ink-soft no-underline hover:border-ember hover:text-ember-text"
+              >
+                <BookOpen className="size-3.5" aria-hidden="true" />
+                {source.title}
+              </Link>
+            ))}
+            {message.links?.slice(0, 3).map((link) => (
+              <Link
+                key={`l-${link.href}-${link.label}`}
+                href={link.href}
+                onClick={onLink}
+                className="inline-flex items-center gap-1 rounded-full bg-ember-tint px-2.5 py-1 text-xs font-semibold text-ember-text no-underline hover:underline"
+              >
+                {link.label}
+                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {!message.pending && !streaming && message.id !== "greeting" && (
+          <div className="mt-1 flex gap-0.5">
+            <CopyButton text={message.text} />
+            <IconAction label="Ask again" onClick={() => onRetry(message.id)}>
+              <RotateCcw />
+            </IconAction>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function CalphyChat() {
+  const { user } = useUser();
+  const viewer = user ? `user:${user.id}` : "guest";
+  const { messages, busy, send, retry, stop, reset, resolveConfirmation } = useCinderChat(viewer);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi! I can guide you around Ignius, preview lessons, explain course topics, and help with temperature conversions. I only answer from this site’s Temperature & Heat content." },
-  ]);
-  // once the chat has been opened, the launcher is just the logo, but only
-  // for whoever opened it: a reload, logout or another account brings it back
-  const { user } = useUser();
-  // no assistant while a quiz is being taken (/quizzes/<slug>), the list page is fine
   const pathname = usePathname() || "";
+  // no assistant while a quiz is being taken (/quizzes/<slug>); the list page is fine
   const onQuiz = /^\/quizzes\/[^/]+/.test(pathname);
   // the landing's hero Cinder already talks, so the launcher stays quiet there
   const onLanding = pathname === "/" || pathname === "/welcome";
-  const viewer = user ? `user:${user.id}` : "guest";
+  // once the chat has been opened, the launcher drops its thought bubble for this viewer
   const [seenBy, setSeenBy] = useState(null);
   const seen = seenBy === viewer;
   const [hint, setHint] = useState(0);
   const [thinking, setThinking] = useState(false);
-  const endRef = useRef(null);
+  const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const suggestions = useMemo(() => suggestionsFor(pathname), [pathname]);
 
+  // keep the newest message in view while it streams
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, busy]);
+    const box = scrollRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
+  }, [messages, open]);
+
   useEffect(() => {
     if (open || seen || onQuiz || onLanding) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -56,7 +276,7 @@ export default function CalphyChat() {
     const cycle = window.setInterval(() => {
       setThinking(true);
       thinkTimer = window.setTimeout(() => {
-        setHint((i) => (i + 1) % idleHints.length);
+        setHint((i) => (i + 1) % IDLE_HINTS.length);
         setThinking(false);
       }, 1100);
     }, 4800);
@@ -65,186 +285,205 @@ export default function CalphyChat() {
       window.clearTimeout(thinkTimer);
     };
   }, [open, seen, onQuiz, onLanding]);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (event) => { if (event.key === "Escape") setOpen(false); };
+    const onKey = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
-    inputRef.current?.focus();
-    return () => window.removeEventListener("keydown", onKey);
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      cancelAnimationFrame(frame);
+    };
   }, [open]);
 
   // other components (e.g. the landing "Ask Cinder" step) open the chat
   // by dispatching this window event
   useEffect(() => {
-    const onOpen = () => openChat();
+    const onOpen = () => {
+      setOpen(true);
+      setSeenBy(viewer);
+    };
     window.addEventListener("calphy:open-chat", onOpen);
     return () => window.removeEventListener("calphy:open-chat", onOpen);
-  });
+  }, [viewer]);
 
-  // In mobile view, close the chat when navigating or clicking a reference so it does not block the redirected page
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth <= 768) {
-      setOpen(false);
-    }
-  }, [pathname]);
-
-  const handleLinkClick = () => {
-    if (typeof window !== "undefined" && window.innerWidth <= 768) {
-      setOpen(false);
-    }
+  // on phones the panel covers the page, so following a link closes it
+  const closeOnPhone = () => {
+    if (window.innerWidth < 640) setOpen(false);
   };
 
-  async function send(value = input) {
-    const question = value.trim();
-    if (!question || busy) return;
-    setInput("");
-    setMessages((current) => [...current, { role: "user", text: question }]);
-    setBusy(true);
-    try {
-      const history = messages
-        .slice(1)
-        .slice(-8)
-        .map(({ role, text }) => ({ role, content: text }));
-      const response = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            ...history,
-            { role: "user", content: question },
-          ],
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Please try again.");
-      setMessages((current) => [...current, {
-        role: "assistant",
-        text: data.answer,
-        links: data.links || [],
-        sources: data.sources || [],
-        notice: data.notice,
-        confirmation: data.confirmation,
-      }]);
-    } catch {
-      setMessages((current) => [...current, {
-        role: "assistant",
-        text: "I couldn’t reach the assistant service. Please try again in a moment.",
-        links: [{ label: "Browse lessons", href: "/lessons" }],
-        notice: "The request failed before it could be answered.",
-      }]);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function respondToConfirmation(index, approved) {
-    const confirmation = messages[index]?.confirmation;
-    if (!confirmation || confirmation.type !== "web-search") return;
-    const url = approved
-      ? `https://www.google.com/search?q=${encodeURIComponent(`${confirmation.query} Temperature and Heat physics`)}`
-      : null;
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
-    setMessages((current) => current.map((message, messageIndex) =>
-      messageIndex === index
-        ? {
-            ...message,
-            confirmation: null,
-            externalSearchUrl: url,
-            text: approved
-              ? "I opened an external web search. Its results are not verified by this course."
-              : "Okay, I didn’t search the web. I’ll stick to the course material.",
-          }
-        : message,
-    ));
-  }
-
-  function openChat() {
+  const openChat = () => {
     setOpen(true);
     setSeenBy(viewer);
     setHint(0);
-  }
+  };
+
+  const submit = (value = input) => {
+    if (!value.trim() || busy) return;
+    send(value);
+    setInput("");
+  };
+
+  const onComposerKey = (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      submit();
+    }
+  };
 
   if (onQuiz) return null;
+  const fresh = messages.length === 1;
 
   return (
-    <>
-      {!open && <button type="button" className={`mascot-fab${seen ? "" : " idle"}`} onClick={openChat} aria-label="Open Cinder course assistant">
-        <CalphyMascot size={50} mood={!seen && thinking ? "think" : "wave"} />
-        {!seen && !onLanding && <span className="thought-bubble" aria-hidden="true">
-          {thinking
-            ? <span className="thought-dots"><i /><i /><i /></span>
-            : <span key={hint} className="thought-text">{idleHints[hint]}</span>}
-        </span>}
-      </button>}
-      {open && <section className="mascot-panel" aria-label="Cinder course assistant" aria-live="polite">
-        <header className="mascot-panel-header">
-          <CalphyMascot size={42} mood={busy ? "think" : "wave"} />
-          <div className="flex-grow-1"><div className="m-name">Cinder Assistant</div><div className="m-status">Course guide · site-grounded</div></div>
-          <button type="button" className="mascot-panel-close" aria-label="Close assistant" onClick={() => setOpen(false)}><i className="bi bi-x-lg" /></button>
-        </header>
-        <div className="mascot-msgs" role="log" aria-label="Conversation">
-          {messages.map((message, index) => <div key={index} className={`mascot-msg ${message.role === "user" ? "user" : "bot"}`}>
-            {message.role === "assistant" ? (
-              <div className="assistant-markdown">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                  skipHtml
-                  components={{
-                    a: ({ href, children }) =>
-                      href?.startsWith("/") && !href.startsWith("//") ? (
-                        <Link href={href} onClick={handleLinkClick}>{children}</Link>
-                      ) : (
-                        <span>{children}</span>
-                      ),
-                    img: ({ alt }) => <span>{alt}</span>,
-                    table: ({ children }) => (
-                      <div className="table-responsive">
-                        <table className="table table-sm assistant-markdown-table">
-                          {children}
-                        </table>
+    <MotionConfig reducedMotion="user">
+      <TooltipProvider delayDuration={300}>
+        <div className="tw">
+          <AnimatePresence>
+            {!open && (
+              <motion.button
+                key="launcher"
+                type="button"
+                onClick={openChat}
+                aria-label="Open Cinder, the course assistant"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="fixed right-4 bottom-4 z-50 flex items-center gap-2 sm:right-6 sm:bottom-6"
+              >
+                {!seen && !onLanding && (
+                  <span
+                    className="hidden rounded-2xl rounded-br-sm border bg-surface px-3 py-2 text-sm font-semibold text-ink shadow-md sm:inline-block"
+                    aria-hidden="true"
+                  >
+                    {thinking ? <TypingDots /> : <span key={hint}>{IDLE_HINTS[hint]}</span>}
+                  </span>
+                )}
+                {/* thermal ring: the launcher is "warm" */}
+                <span className="bg-thermal grid size-16 place-items-center rounded-full p-[3px] shadow-lg transition-transform hover:scale-105">
+                  <span className="grid size-full place-items-center rounded-full bg-surface">
+                    <CalphyMascot size={46} mood={!seen && thinking ? "think" : "wave"} />
+                  </span>
+                </span>
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {open && (
+              <motion.section
+                key="panel"
+                role="dialog"
+                aria-modal="false"
+                aria-label="Cinder, the course assistant"
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[min(42rem,calc(100dvh-6rem))] sm:w-[25rem] sm:rounded-3xl sm:border sm:shadow-2xl"
+              >
+                <header className="relative flex items-center gap-3 border-b bg-surface px-4 py-3">
+                  <CalphyMascot size={38} mood={busy ? "think" : "wave"} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold leading-tight text-ink">Cinder</p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className={cn("size-1.5 rounded-full", busy ? "bg-flame" : "bg-good")} aria-hidden="true" />
+                      {busy ? "Thinking…" : "Answers from this course"}
+                    </p>
+                  </div>
+                  <IconAction label="New chat" onClick={reset}>
+                    <SquarePen />
+                  </IconAction>
+                  <IconAction label="Close" onClick={() => setOpen(false)}>
+                    <X />
+                  </IconAction>
+                </header>
+
+                <div
+                  ref={scrollRef}
+                  role="log"
+                  aria-live="polite"
+                  aria-label="Conversation"
+                  className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
+                >
+                  {messages.map((message, index) =>
+                    message.role === "user" ? (
+                      <div key={message.id} className="flex justify-end">
+                        <p className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-3.5 py-2 text-[0.95rem] whitespace-pre-wrap text-primary-foreground">
+                          {message.text}
+                        </p>
                       </div>
+                    ) : (
+                      <AssistantMessage
+                        key={message.id}
+                        message={message}
+                        last={index === messages.length - 1}
+                        busy={busy}
+                        onRetry={retry}
+                        onConfirm={resolveConfirmation}
+                        onLink={closeOnPhone}
+                      />
                     ),
+                  )}
+                  {fresh && (
+                    <div className="flex flex-wrap gap-2 pl-[2.375rem]">
+                      {suggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => submit(suggestion)}
+                          className="rounded-full border bg-surface px-3 py-1.5 text-left text-sm font-medium text-ink-soft transition-colors hover:border-ember hover:text-ember-text"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <form
+                  className="border-t bg-surface p-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    submit();
                   }}
                 >
-                  {normalizeMathDelimiters(message.text)}
-                </ReactMarkdown>
-              </div>
-            ) : (
-              <p className="mb-0">{message.text}</p>
+                  <div className="flex items-end gap-2 rounded-2xl border bg-bg p-1.5 pl-3 focus-within:border-ember">
+                    <label className="sr-only" htmlFor="cinder-question">
+                      Ask a course question
+                    </label>
+                    <textarea
+                      ref={inputRef}
+                      id="cinder-question"
+                      rows={1}
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      onKeyDown={onComposerKey}
+                      placeholder="Ask about a lesson or formula…"
+                      maxLength={1200}
+                      className="field-sizing-content max-h-32 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[0.95rem] text-ink outline-none placeholder:text-muted-foreground"
+                    />
+                    {busy ? (
+                      <Button type="button" size="icon" variant="secondary" className="size-9 rounded-xl" onClick={stop} aria-label="Stop answering">
+                        <Square className="fill-current" />
+                      </Button>
+                    ) : (
+                      <Button type="submit" size="icon" className="size-9 rounded-xl" disabled={!input.trim()} aria-label="Send question">
+                        <ArrowUp />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">
+                    Cinder only answers from Ignius lessons. Check important numbers.
+                  </p>
+                </form>
+              </motion.section>
             )}
-            {!!message.notice && <div className="assistant-context" role="status">{message.notice}</div>}
-            {!!message.sources?.length && <div className="assistant-citation">
-              <span>Source:</span>{" "}
-              {message.sources.map((source, sourceIndex) => (
-                <Fragment key={`${source.href}-${source.title}`}>
-                  {sourceIndex > 0 && <span> · </span>}
-                  <Link href={source.href} onClick={handleLinkClick}>{source.title}</Link>
-                </Fragment>
-              ))}
-            </div>}
-            {message.confirmation && <div className="assistant-confirmation" role="group" aria-label="Confirm external web search">
-              <strong>Search Google for “{message.confirmation.query}”?</strong>
-              <p>{message.confirmation.description}</p>
-              <div>
-                <button type="button" className="assistant-confirm-deny" onClick={() => respondToConfirmation(index, false)}>Deny</button>
-                <button type="button" className="assistant-confirm-approve" onClick={() => respondToConfirmation(index, true)}>Approve</button>
-              </div>
-            </div>}
-            {message.externalSearchUrl && <a className="assistant-external-search" href={message.externalSearchUrl} target="_blank" rel="noreferrer">Open web search<i className="bi bi-arrow-up-right ms-1" /></a>}
-            {!!message.links?.length && <div className="assistant-links">{message.links.slice(0, 3).map((link) => <Link key={`${link.href}-${link.label}`} href={link.href} onClick={handleLinkClick}>{link.label}<i className="bi bi-arrow-up-right ms-1" /></Link>)}</div>}
-          </div>)}
-          {messages.length === 1 && <div className="assistant-suggestions">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => send(suggestion)}>{suggestion}</button>)}</div>}
-          {busy && <div className="mascot-msg bot"><span className="spinner-border spinner-border-sm me-2" />Looking through the course…</div>}
-          <div ref={endRef} />
+          </AnimatePresence>
         </div>
-        <form className="mascot-compose" onSubmit={(event) => { event.preventDefault(); send(); }}>
-          <label className="visually-hidden" htmlFor="calphy-question">Ask a course question</label>
-          <input ref={inputRef} id="calphy-question" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about a lesson or topic…" maxLength={1200} disabled={busy} />
-          <button type="submit" className="btn btn-flame" disabled={busy || !input.trim()} aria-label="Send question"><i className="bi bi-send-fill" /></button>
-        </form>
-        <div className="assistant-footnote">Answers stay within the lessons and tools on this site.</div>
-      </section>}
-    </>
+      </TooltipProvider>
+    </MotionConfig>
   );
 }
