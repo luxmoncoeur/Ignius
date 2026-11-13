@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Container } from "react-bootstrap";
+import { BookOpen, Layers } from "lucide-react";
+import QuizRunner from "@/components/QuizRunner";
+import PageHeader, { Page } from "@/components/PageHeader";
 import { QUIZZES, QUIZ_BY_SLUG, quizLabel } from "@/lib/quizzes";
 import { LESSONS, LESSON_BY_KEY } from "@/lib/lessons";
-import QuizRunner from "@/components/QuizRunner";
-import Reveal from "@/components/Reveal";
 
 export function generateStaticParams() {
   return QUIZZES.map((q) => ({ slug: q.slug }));
@@ -28,10 +28,11 @@ function nextStep(quiz) {
       label: `Next: Lesson ${next.n} · ${next.title}`,
     };
   const finalExam = QUIZZES.find((q) => q.final);
-  return finalExam
-    ? { href: `/quizzes/${finalExam.slug}`, label: "Next: Final exam" }
-    : null;
+  return finalExam ? { href: `/quizzes/${finalExam.slug}`, label: "Next: Final exam" } : null;
 }
+
+const chip =
+  "inline-flex items-center gap-1.5 rounded-full border bg-surface px-3 py-1 text-sm font-semibold text-ink-soft";
 
 export default async function QuizPage({ params }) {
   const { slug } = await params;
@@ -39,52 +40,35 @@ export default async function QuizPage({ params }) {
   if (!quiz) notFound();
 
   return (
-    <div className="page-top-space">
-      <section className="section-tight pb-5">
-        <Container>
-          <Reveal>
-            <nav aria-label="breadcrumb" className="mb-3">
-              <ol className="breadcrumb small mb-0">
-                <li className="breadcrumb-item">
-                  <Link href="/learn">Home</Link>
-                </li>
-                <li className="breadcrumb-item">
-                  <Link href="/quizzes">Quizzes</Link>
-                </li>
-                <li className="breadcrumb-item active" aria-current="page">
-                  {quizLabel(quiz.id)}
-                </li>
-              </ol>
-            </nav>
-            <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
-              <span className="chip flame">
-                <i className={`bi ${quiz.icon}`} /> {quizLabel(quiz.id)}
-              </span>
-              {quiz.final && (
-                <span className="chip cool">
-                  <i className="bi bi-collection" /> Covers all{" "}
-                  {LESSONS.length} lessons
-                </span>
-              )}
-              {quiz.lessons.map((lk) => {
-                const l = LESSON_BY_KEY[lk];
-                return (
-                  <Link
-                    key={lk}
-                    href={`/lessons/${l.slug}`}
-                    className="chip cool"
-                  >
-                    <i className="bi bi-journal-bookmark" /> Review Lesson {l.n}
-                  </Link>
-                );
-              })}
-            </div>
-          </Reveal>
-          <Reveal delay={60}>
-            <QuizRunner quiz={quiz} next={nextStep(quiz)} />
-          </Reveal>
-        </Container>
-      </section>
-    </div>
+    <Page>
+      <div className="mx-auto max-w-3xl">
+        <PageHeader
+          className="mb-6"
+          crumbs={[
+            { href: "/learn", label: "Home" },
+            { href: "/quizzes", label: "Quizzes" },
+            { label: quizLabel(quiz.id) },
+          ]}
+          title={quiz.title}
+          sub={quiz.description}
+        />
+        <div className="mb-6 flex flex-wrap gap-2">
+          {quiz.final && (
+            <span className={chip}>
+              <Layers className="size-4 text-ember-text" aria-hidden="true" /> Covers all {LESSONS.length} lessons
+            </span>
+          )}
+          {quiz.lessons.map((key) => {
+            const lesson = LESSON_BY_KEY[key];
+            return (
+              <Link key={key} href={`/lessons/${lesson.slug}`} className={`${chip} hover:border-ember hover:text-ink`}>
+                <BookOpen className="size-4 text-cool" aria-hidden="true" /> Review Lesson {lesson.n}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+      <QuizRunner quiz={quiz} next={nextStep(quiz)} />
+    </Page>
   );
 }

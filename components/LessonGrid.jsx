@@ -1,156 +1,139 @@
 "use client";
 
-// Lessons grouped by unit. `home` renders compact lesson rows (the /learn
-// page); the default renders cards for /lessons.
+// Lessons grouped by unit, on a vertical cold → hot timeline.
+// `home` (the /learn page) shows compact lesson rows with Up next / Done;
+// the default (/lessons) shows cards with each lesson's tagline.
 import Link from "next/link";
-import { UNITS, LESSON_BY_KEY } from "@/lib/lessons";
+import { ArrowRight, Check } from "lucide-react";
 import { useUser } from "@/components/UserContext";
+import StatusBadge from "@/components/StatusBadge";
+import { UNITS, LESSON_BY_KEY } from "@/lib/lessons";
+import { DataIcon } from "@/lib/icons";
 import { lessonStatus } from "@/lib/progress";
+import { thermalAt } from "@/lib/thermal";
+import { cn } from "@/lib/utils";
 
-function RowStatus({ status, isUpNext }) {
-  if (status === "Finished")
-    return (
-      <span className="row-status done">
-        <i className="bi bi-check-circle-fill" aria-hidden="true" /> Done
+function LessonRow({ lesson, status, isCurrent, isUpNext }) {
+  const done = status === "Finished";
+  return (
+    <Link
+      href={`/lessons/${lesson.slug}`}
+      aria-current={isCurrent ? "step" : undefined}
+      className={cn(
+        "group flex min-h-16 items-center gap-3 rounded-xl border px-3 py-2.5 no-underline transition-colors",
+        isCurrent
+          ? "border-ember bg-ember-tint"
+          : "bg-surface hover:border-[var(--unit)] hover:bg-surface",
+      )}
+    >
+      <span
+        className={cn(
+          "grid size-10 shrink-0 place-items-center rounded-lg",
+          done ? "bg-good-tint text-good-text" : isCurrent ? "bg-primary text-primary-foreground" : "bg-surface-2 text-ink",
+        )}
+        aria-hidden="true"
+      >
+        {done ? <Check className="size-5" /> : <DataIcon name={lesson.icon} className="size-5" />}
       </span>
-    );
-  if (status === "Current")
-    return <span className="row-status next">In progress</span>;
-  if (isUpNext) return <span className="row-status upcoming">Up next</span>;
-  return null;
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-semibold text-muted-foreground">Lesson {lesson.n}</span>
+        <span className="block font-semibold leading-snug text-ink">{lesson.title}</span>
+      </span>
+      <StatusBadge status={status !== "NotStarted" ? status : isUpNext ? "UpNext" : null} />
+    </Link>
+  );
 }
 
-export default function LessonGrid({
-  home = false,
-  currentKey = null,
-  upNextKey = null,
-}) {
+function LessonCard({ lesson, status }) {
+  return (
+    <Link
+      href={`/lessons/${lesson.slug}`}
+      className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl bg-surface p-5 no-underline shadow-xs transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-[var(--unit)] hover:shadow-md"
+    >
+      <span className="absolute top-3 right-4 text-5xl font-extrabold text-surface-2 tabular-nums" aria-hidden="true">
+        {lesson.n}
+      </span>
+      <span
+        className="relative grid size-11 place-items-center rounded-xl text-ink"
+        style={{ background: "color-mix(in srgb, var(--unit) 18%, transparent)" }}
+        aria-hidden="true"
+      >
+        <DataIcon name={lesson.icon} className="size-5" />
+      </span>
+      <span className="relative">
+        <span className="block text-lg font-bold leading-snug text-ink">{lesson.title}</span>
+        <span className="mt-1 line-clamp-2 block text-sm leading-relaxed text-ink-soft">{lesson.tagline}</span>
+      </span>
+      <span className="relative mt-auto flex items-center justify-between gap-2 pt-1">
+        <StatusBadge status={status} />
+        <ArrowRight
+          className="ml-auto size-4 text-ember-text transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </span>
+    </Link>
+  );
+}
+
+export default function LessonGrid({ home = false, currentKey = null, upNextKey = null }) {
   const { progress } = useUser();
 
   return (
-    <div
-      className={`d-grid gap-3 gap-md-4 lesson-unit-grid ${home ? "home" : ""}`}
-    >
-      {UNITS.map((unit, ui) => {
-        const doneCount = unit.lessons.filter(
-          (key) => lessonStatus(progress, key) === "Finished",
-        ).length;
-
+    <ol className="tw relative grid gap-6">
+      {/* the timeline rail; each unit node carries its place on the cold → hot scale */}
+      <span
+        className="absolute top-5 bottom-5 left-5 w-px bg-line max-sm:hidden"
+        aria-hidden="true"
+      />
+      {UNITS.map((unit, index) => {
+        const doneCount = unit.lessons.filter((key) => lessonStatus(progress, key) === "Finished").length;
+        const complete = doneCount === unit.lessons.length;
         return (
-          <div
+          <li
             key={unit.id}
-            className={`card-soft flat unit-card ${home ? "unit-card-home p-3 p-md-4" : "p-4"}`}
+            id={unit.id}
+            className="relative scroll-mt-24 sm:pl-16"
+            style={{ "--unit": thermalAt(index / (UNITS.length - 1)) }}
           >
-            {home ? (
-              <span className="unit-num-overlay" aria-hidden="true">
-                {ui + 1}
-              </span>
-            ) : null}
-            <div className="unit-card-heading d-flex align-items-center gap-3 mb-2">
-              <span className="icon-tile">
-                <i className={`bi ${unit.icon}`} aria-hidden="true" />
-              </span>
+            <span
+              className="absolute top-0 left-0 grid size-10 place-items-center rounded-full border-4 border-bg text-[#0b1220] max-sm:hidden"
+              style={{ background: "var(--unit)" }}
+              aria-hidden="true"
+            >
+              {complete ? <Check className="size-5" /> : <DataIcon name={unit.icon} className="size-5" />}
+            </span>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <div>
-                <div className="unit-number">
-                  Unit {ui + 1}
-                  {home ? (
-                    <span className="text-muted fw-semibold">
-                      {" "}
-                      · {doneCount}/{unit.lessons.length} done
-                    </span>
-                  ) : null}
-                </div>
-                <h2 className="fw-bold mb-0 h5">{unit.title}</h2>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Unit {index + 1} · {doneCount}/{unit.lessons.length} done
+                </p>
+                <h2 className="text-xl font-bold text-ink">{unit.title}</h2>
               </div>
-              {home ? null : (
-                <span className="small text-muted ms-auto text-nowrap">
-                  {doneCount}/{unit.lessons.length}
-                </span>
-              )}
+              {!home && <p className="max-w-md text-sm text-ink-soft">{unit.subtitle}</p>}
             </div>
-
-            {home ? (
-              <div className="unit-lesson-list">
-                {unit.lessons.map((key) => {
-                  const lesson = LESSON_BY_KEY[key];
-                  const status = lessonStatus(progress, key);
-                  const isCurrent = key === currentKey;
-                  return (
-                    <Link
-                      key={key}
-                      href={`/lessons/${lesson.slug}`}
-                      className={`unit-lesson-row ${isCurrent ? "is-next" : ""} ${status === "Finished" ? "is-done" : ""}`}
-                      aria-current={isCurrent ? "step" : undefined}
-                    >
-                      <span className="row-icon" aria-hidden="true">
-                        <i className={`bi ${lesson.icon}`} />
-                      </span>
-                      <span className="flex-grow-1 min-w-0">
-                        <span className="row-num">Lesson {lesson.n}</span>
-                        <span className="d-block">{lesson.title}</span>
-                      </span>
-                      <RowStatus
+            <ul className={cn("grid gap-3", home ? "md:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-4")}>
+              {unit.lessons.map((key) => {
+                const lesson = LESSON_BY_KEY[key];
+                const status = lessonStatus(progress, key);
+                return (
+                  <li key={key}>
+                    {home ? (
+                      <LessonRow
+                        lesson={lesson}
                         status={status}
+                        isCurrent={key === currentKey}
                         isUpNext={key === upNextKey}
                       />
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : (
-              <>
-                <p className="text-muted small mb-3">{unit.subtitle}</p>
-                <div className="row g-3 row-cols-1 row-cols-md-2 row-cols-xl-4">
-                  {unit.lessons.map((key) => {
-                    const l = LESSON_BY_KEY[key];
-                    const status = lessonStatus(progress, l.key);
-                    return (
-                      <div className="col" key={key}>
-                        <Link
-                          href={`/lessons/${l.slug}`}
-                          className="lesson-card-link text-reset"
-                        >
-                          <div className="card-soft hover-card lesson-card p-3 h-100">
-                            <span className="lesson-num">{l.n}</span>
-                            <div className="lesson-card-content d-flex align-items-start gap-2">
-                              <span className="lesson-icon icon-tile">
-                                <i className={`bi ${l.icon}`} aria-hidden="true" />
-                              </span>
-                              <div className="lesson-card-copy">
-                                <div className="lesson-title-link">
-                                  {l.title}
-                                </div>
-                                <div className="lesson-card-tagline small text-muted mt-1">
-                                  {l.tagline}
-                                </div>
-                              </div>
-                            </div>
-                            {status !== "NotStarted" && (
-                              <div className="lesson-card-status mt-2">
-                                {status === "Finished" ? (
-                                  <span className="chip green">
-                                    <i className="bi bi-check-circle-fill" />{" "}
-                                    completed
-                                  </span>
-                                ) : (
-                                  <span className="chip flame">
-                                    <i className="bi bi-play-circle-fill" /> in
-                                    progress
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
+                    ) : (
+                      <LessonCard lesson={lesson} status={status} />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }

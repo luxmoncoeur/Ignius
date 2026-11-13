@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { Container } from "react-bootstrap";
-import Reveal from "@/components/Reveal";
+import PageHeader, { Page } from "@/components/PageHeader";
+import { thermalAt } from "@/lib/thermal";
 
 export const metadata = {
   title: "Proponents",
@@ -31,55 +30,31 @@ const MEMBERS = [
   return { full, surname, given, initials: given[0] + surname[0] };
 });
 
-// avatar colours cycle through the site's warm/cool/green tints
-const TONES = ["ember", "cool", "good"];
-
 export default function ProponentsPage() {
   return (
-    <div className="page-top-space">
-      <section className="section-tight">
-        <Container>
-          <Reveal>
-            <nav aria-label="breadcrumb" className="mb-3">
-              <ol className="breadcrumb small mb-0">
-                <li className="breadcrumb-item">
-                  <Link href="/learn">Home</Link>
-                </li>
-                <li className="breadcrumb-item active" aria-current="page">
-                  Proponents
-                </li>
-              </ol>
-            </nav>
-            <span className="eyebrow">
-              <i className="bi bi-people" /> Proponents
+    <Page>
+      <PageHeader
+        crumbs={[{ href: "/learn", label: "Home" }, { label: "Proponents" }]}
+        title="The team behind Ignius"
+        sub={`${MEMBERS.length} students built these lessons, simulations, and quizzes for the CALPHY Finals unit on Temperature and Heat.`}
+      />
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {MEMBERS.map((member, i) => (
+          <li key={member.full} className="flex items-center gap-3 rounded-2xl bg-surface p-4">
+            <span
+              className="grid size-12 shrink-0 place-items-center rounded-full text-base font-bold text-[#0b1220]"
+              style={{ background: thermalAt(i / (MEMBERS.length - 1)) }}
+              aria-hidden="true"
+            >
+              {member.initials}
             </span>
-            <h1 className="section-title">The team behind Ignius</h1>
-            <p className="section-sub mb-4">
-              {MEMBERS.length} students built these lessons, simulations, and
-              quizzes for the CALPHY Finals unit on Temperature and Heat.
-            </p>
-          </Reveal>
-
-          <ul className="proponent-grid list-unstyled mb-0">
-            {MEMBERS.map((m, i) => (
-              <Reveal as="li" key={m.full} delay={(i % 6) * 50}>
-                <div className="card-soft proponent-card">
-                  <span
-                    className={`proponent-avatar tone-${TONES[i % TONES.length]}`}
-                    aria-hidden="true"
-                  >
-                    {m.initials}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="proponent-surname">{m.surname}</div>
-                    <div className="proponent-given">{m.given}</div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
-    </div>
+            <span className="min-w-0">
+              <span className="block truncate font-bold text-ink">{member.surname}</span>
+              <span className="block truncate text-sm text-ink-soft">{member.given}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Page>
   );
 }

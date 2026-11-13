@@ -5,8 +5,10 @@
 // visit, offers "Mark as complete", and shows prev/next links.
 // ============================================================
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { CircleCheck, Flag } from "lucide-react";
+import { toast } from "sonner";
 import { useUser } from "@/components/UserContext";
+import { Button } from "@/components/ui/button";
 import { lessonStatus, markLesson, readLocal } from "@/lib/progress";
 
 export function LessonTracker({ lessonKey }) {
@@ -25,7 +27,7 @@ export function LessonTracker({ lessonKey }) {
   return null;
 }
 
-export function MarkCompleteButton({ lessonKey, compact = false }) {
+export function MarkCompleteButton({ lessonKey }) {
   const { progress, isLoggedIn } = useUser();
   const status = lessonStatus(progress, lessonKey);
   const [celebrating, setCelebrating] = useState(false);
@@ -33,12 +35,15 @@ export function MarkCompleteButton({ lessonKey, compact = false }) {
   const onClick = async () => {
     if (status === "Finished") return;
     await markLesson(lessonKey, "Finished", isLoggedIn);
+    toast.success("Lesson complete", {
+      description: isLoggedIn ? "Saved to your account." : "Saved in this browser.",
+    });
     setCelebrating(true);
     window.setTimeout(() => setCelebrating(false), 2400);
   };
 
   return (
-    <div className="d-flex flex-wrap align-items-center gap-2">
+    <div className="relative flex flex-wrap items-center gap-2">
       {celebrating &&
         Array.from({ length: 18 }, (_, index) => (
           <span
@@ -59,23 +64,22 @@ export function MarkCompleteButton({ lessonKey, compact = false }) {
             }}
           />
         ))}
-      <button
-        className={`btn ${status === "Finished" ? "btn-cool" : "btn-flame"}${
-          compact ? " btn-compact" : ""
-        }`}
+      <Button
         onClick={onClick}
         disabled={status === "Finished"}
+        variant={status === "Finished" ? "secondary" : "default"}
+        className="h-11 rounded-full px-5 disabled:opacity-100"
       >
         {status === "Finished" ? (
           <>
-            <i className="bi bi-check-circle-fill me-1" /> Lesson completed
+            <CircleCheck className="text-good-text" /> Lesson completed
           </>
         ) : (
           <>
-            <i className="bi bi-flag-fill me-1" /> Mark lesson as complete
+            <Flag /> Mark lesson as complete
           </>
         )}
-      </button>
+      </Button>
     </div>
   );
 }

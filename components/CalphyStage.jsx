@@ -1,5 +1,5 @@
 // ============================================================
-// A big Cinder with a warm glow, rising embers and twinkling sparkles.
+// A big Cinder with rising embers and twinkling sparkles (no glow behind him).
 // Positions are fixed (not random) so server and client render the same.
 // Pass children to stage something else (the landing's hero art); scale the
 // effects with --stage-scale in CSS.
@@ -28,7 +28,6 @@ const STARS = [
 export default function CalphyStage({ size = 200, className = "", children }) {
   return (
     <div className={`calphy-stage ${className}`}>
-      <span className="calphy-stage-aura" aria-hidden="true" />
       {EMBERS.map((e, i) => (
         <span
           key={`e${i}`}

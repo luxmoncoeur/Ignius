@@ -7,21 +7,12 @@ import { SimViewContext } from "./sims/SimViewContext";
 import { SIM_REGISTRY } from "./sims/registry";
 
 const SimLoading = () => (
-  <div className="sim-shell">
-    <div className="sim-header">
-      <div className="sim-title">
-        <span className="dot" /> Loading simulation…
-      </div>
+  <div className="tw overflow-hidden rounded-2xl bg-surface" role="status" aria-label="Loading simulation">
+    <div className="flex items-center gap-2 border-b px-4 py-3">
+      <span className="size-2 animate-pulse rounded-full bg-ember" aria-hidden="true" />
+      <span className="h-4 w-40 animate-pulse rounded bg-surface-2" />
     </div>
-    <div
-      className="sim-stage d-flex align-items-center justify-content-center"
-      style={{ minHeight: 320 }}
-    >
-      <div className="text-center text-light opacity-75">
-        <div className="spinner-border text-warning mb-2" role="status" />
-        <div className="small">Warming up the particles…</div>
-      </div>
-    </div>
+    <div className="grid min-h-80 place-items-center bg-stage text-sm text-slate-300">Warming up the particles…</div>
   </div>
 );
 

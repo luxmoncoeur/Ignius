@@ -1,36 +1,51 @@
 "use client";
 
-// Navbar search: a field-shaped trigger that opens a search dialog.
-// Typing is debounced so the index is only scanned once per pause.
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+// ⌘K / Ctrl+K / "/" search palette over lessons, sims, quizzes and formulas.
+// Matching uses lib/search.js (word-prefix ranking), not cmdk's fuzzy filter.
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Modal } from "react-bootstrap";
+import { BookOpen, CircleHelp, FlaskConical, Search, Sigma } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { searchSite } from "@/lib/search";
 import useDebouncedValue from "@/lib/useDebouncedValue";
 
 const SUGGESTIONS = ["specific heat", "calorimetry", "Wien", "Kelvin", "gas laws"];
+const TYPE_ICON = {
+  Lesson: BookOpen,
+  Simulation: FlaskConical,
+  Quiz: CircleHelp,
+  Formula: Sigma,
+};
+const TYPE_ORDER = ["Lesson", "Simulation", "Quiz", "Formula"];
 
-export default function SiteSearch({ onNavigate }) {
+export default function SiteSearch() {
   const router = useRouter();
-  const inputRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const debounced = useDebouncedValue(query.trim(), 200);
-  const results = useMemo(() => searchSite(debounced), [debounced]);
-  // highlighted row resets whenever a new debounced query lands
-  const [activeState, setActiveState] = useState({ q: "", i: 0 });
-  const active = activeState.q === debounced ? activeState.i : 0;
-  const setActive = (i) => setActiveState({ q: debounced, i });
+  const debounced = useDebouncedValue(query.trim(), 120);
+  const results = useMemo(() => searchSite(debounced, 12), [debounced]);
+  const groups = TYPE_ORDER.map((type) => [
+    type,
+    results.filter((item) => item.type === type),
+  ]).filter(([, items]) => items.length);
 
   useEffect(() => {
-    const onKey = (e) => {
-      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setOpen(true);
-      } else if (e.key === "/" && !typing) {
-        e.preventDefault();
+    const onKey = (event) => {
+      const typing =
+        /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || event.target.isContentEditable;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setOpen((value) => !value);
+      } else if (event.key === "/" && !typing) {
+        event.preventDefault();
         setOpen(true);
       }
     };
@@ -38,142 +53,92 @@ export default function SiteSearch({ onNavigate }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const close = () => {
-    setOpen(false);
-    setQuery("");
+  const onOpenChange = (value) => {
+    setOpen(value);
+    if (!value) setQuery("");
   };
 
-  const go = (item) => {
-    close();
-    onNavigate?.();
-    router.push(item.href);
-  };
-
-  const onInputKey = (e) => {
-    if (!results.length) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActive((active + 1) % results.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((active - 1 + results.length) % results.length);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      go(results[active]);
-    }
+  const go = (href) => {
+    onOpenChange(false);
+    router.push(href);
   };
 
   return (
     <>
-      <button
-        type="button"
-        className="nav-search-trigger"
+      <Button
+        variant="outline"
         onClick={() => setOpen(true)}
         aria-label="Search lessons, simulations, quizzes and formulas"
         aria-keyshortcuts="Control+K Meta+K /"
+        className="h-10 gap-2 rounded-full bg-surface px-3 text-muted-foreground hover:text-ink sm:w-44 sm:justify-start"
       >
-        <i className="bi bi-search" aria-hidden="true" />
-        <span className="nav-search-label">Search</span>
-        <kbd className="nav-search-kbd" aria-hidden="true">
+        <Search />
+        <span className="hidden sm:inline">Search</span>
+        <kbd className="ml-auto hidden rounded border bg-surface-2 px-1.5 font-mono text-[0.7rem] text-ink-soft sm:inline">
           /
         </kbd>
-      </button>
+      </Button>
 
-      <Modal
-        show={open}
-        onHide={close}
-        onEntered={() => inputRef.current?.focus()}
-        dialogClassName="site-search-dialog"
-        contentClassName="site-search-content"
-        aria-label="Search the site"
+      <CommandDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title="Search Ignius"
+        description="Search lessons, simulations, quizzes and formulas"
+        shouldFilter={false}
       >
-        <div className="site-search-field">
-          <i className="bi bi-search" aria-hidden="true" />
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onInputKey}
-            placeholder="Search lessons, sims, quizzes, formulas"
-            aria-label="Search"
-            role="combobox"
-            aria-expanded={results.length > 0}
-            aria-controls="site-search-results"
-            aria-activedescendant={
-              results.length ? `site-search-option-${active}` : undefined
-            }
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button
-            type="button"
-            className="site-search-close"
-            onClick={close}
-            aria-label="Close search"
-          >
-            Esc
-          </button>
-        </div>
-
-        <div className="site-search-body">
+        <CommandInput
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Search lessons, sims, quizzes, formulas"
+        />
+        <CommandList className="max-h-[min(60vh,26rem)]">
           {!debounced ? (
-            <div className="site-search-hint">
-              <span>Try</span>
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className="site-search-suggestion"
-                  onClick={() => {
-                    setQuery(s);
-                    inputRef.current?.focus();
-                  }}
+            <CommandGroup heading="Try">
+              {SUGGESTIONS.map((suggestion) => (
+                <CommandItem
+                  key={suggestion}
+                  value={`suggest-${suggestion}`}
+                  onSelect={() => setQuery(suggestion)}
                 >
-                  {s}
-                </button>
+                  <Search />
+                  {suggestion}
+                </CommandItem>
               ))}
-            </div>
-          ) : results.length === 0 ? (
-            <p className="site-search-empty">
-              Nothing matches &ldquo;{debounced}&rdquo;. Try a topic like
-              &ldquo;conduction&rdquo; or &ldquo;latent heat&rdquo;.
-            </p>
+            </CommandGroup>
           ) : (
-            <ul
-              id="site-search-results"
-              className="site-search-results"
-              role="listbox"
-            >
-              {results.map((r, i) => (
-                <li key={r.href} role="presentation">
-                  <Link
-                    id={`site-search-option-${i}`}
-                    href={r.href}
-                    role="option"
-                    aria-selected={i === active}
-                    className={`site-search-result ${i === active ? "active" : ""}`}
-                    onMouseEnter={() => setActive(i)}
-                    onClick={() => {
-                      close();
-                      onNavigate?.();
-                    }}
-                  >
-                    <span className="site-search-icon" aria-hidden="true">
-                      <i className={`bi ${r.icon}`} />
-                    </span>
-                    <span className="site-search-text">
-                      <span className="site-search-title">{r.title}</span>
-                      <span className="site-search-detail">{r.detail}</span>
-                    </span>
-                    <span className="site-search-type">{r.type}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <CommandEmpty>
+                Nothing matches “{debounced}”. Try a topic like “conduction”.
+              </CommandEmpty>
+              {groups.map(([type, items]) => {
+                const Icon = TYPE_ICON[type];
+                return (
+                  <CommandGroup key={type} heading={`${type}s`}>
+                    {items.map((item) => (
+                      <CommandItem
+                        key={item.href}
+                        value={item.href}
+                        onSelect={() => go(item.href)}
+                        className="items-start py-2.5"
+                      >
+                        <Icon className="mt-0.5 text-ember-text" />
+                        <span className="grid gap-0.5">
+                          <span className="font-semibold text-ink">{item.title}</span>
+                          {item.detail && (
+                            <span className="line-clamp-1 text-xs text-muted-foreground">
+                              {item.detail}
+                            </span>
+                          )}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                );
+              })}
+            </>
           )}
-        </div>
-      </Modal>
+        </CommandList>
+      </CommandDialog>
     </>
   );
 }

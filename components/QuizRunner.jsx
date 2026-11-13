@@ -13,7 +13,29 @@
 // ============================================================
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  ArrowRight,
+  Award,
+  BookOpen,
+  ChartNoAxesColumnIncreasing,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  CloudUpload,
+  DatabaseZap,
+  LayoutGrid,
+  RefreshCw,
+  RotateCcw,
+  Send,
+  Trophy,
+} from "lucide-react";
 import ProgressRing from "@/components/ProgressRing";
+import QuizOption from "@/components/QuizOption";
+import ThermalProgress from "@/components/ThermalProgress";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DataIcon } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import { saveQuizScore, completeLessons, celebrate } from "@/lib/progress";
 import { PASS_PERCENT } from "@/lib/quizzes";
 import { LESSON_BY_KEY } from "@/lib/lessons";
@@ -73,9 +95,7 @@ export default function QuizRunner({ quiz, next: nextStep }) {
   }, [quiz]);
 
   const total = quiz.questions.length;
-  const answeredCount = quiz.questions.filter((q, i) =>
-    isAnswered(q, answers[i]),
-  ).length;
+  const answeredCount = quiz.questions.filter((q, i) => isAnswered(q, answers[i])).length;
   const score = quiz.questions.filter((q, i) => isCorrect(q, answers[i])).length;
   const pct = Math.round((score / total) * 100);
   const passed = pct >= PASS_PERCENT;
@@ -83,29 +103,22 @@ export default function QuizRunner({ quiz, next: nextStep }) {
   // before the handlers: the React Compiler reads attempt for their memo keys
   if (!attempt) {
     return (
-      <div
-        className="card-soft flat p-4 p-md-5 text-center text-muted"
-        style={{ maxWidth: 760, margin: "0 auto" }}
-      >
-        <span className="spinner-border spinner-border-sm me-2" />
-        Shuffling questions…
+      <div className="tw mx-auto grid max-w-3xl gap-3" role="status" aria-label="Shuffling questions">
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
       </div>
     );
   }
 
-  const setAnswer = (qIndex, value) =>
-    setAnswers((prev) => ({ ...prev, [qIndex]: value }));
+  const setAnswer = (qIndex, value) => setAnswers((prev) => ({ ...prev, [qIndex]: value }));
 
   const submit = (e) => {
     e.preventDefault();
-    const firstMissing = attempt.questionOrder.find(
-      (qi) => !isAnswered(quiz.questions[qi], answers[qi]),
-    );
+    const firstMissing = attempt.questionOrder.find((qi) => !isAnswered(quiz.questions[qi], answers[qi]));
     if (firstMissing !== undefined) {
       setShowMissing(true);
-      document
-        .getElementById(`quiz-q-${firstMissing}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById(`quiz-q-${firstMissing}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     setSubmitted(true);
@@ -124,7 +137,7 @@ export default function QuizRunner({ quiz, next: nextStep }) {
   };
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+    <div className="tw mx-auto max-w-3xl">
       {submitted ? (
         <ResultSummary
           quiz={quiz}
@@ -137,29 +150,23 @@ export default function QuizRunner({ quiz, next: nextStep }) {
           onRestart={restart}
         />
       ) : (
-        <div className="card-soft flat p-3 p-md-4 mb-3">
-          <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-            <span className="chip flame">
-              <i className={`bi ${quiz.icon}`} /> {quiz.title}
+        <div className="sticky top-[4.5rem] z-30 mb-4 rounded-2xl bg-surface p-4 shadow-sm">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-2 font-bold text-ink">
+              <DataIcon name={quiz.icon} className="size-4 text-ember-text" aria-hidden="true" /> {quiz.title}
             </span>
-            <span className="text-muted small fw-semibold">
+            <span className="text-sm font-semibold text-muted-foreground tabular-nums" aria-live="polite">
               {answeredCount} of {total} answered
             </span>
           </div>
-          <div className="progress-thin">
-            <div
-              className="bar"
-              style={{ width: `${(answeredCount / total) * 100}%` }}
-            />
-          </div>
-          <p className="small text-muted mb-0 mt-2">
-            Answer every question, then submit. Your score and the correct
-            answers appear after you submit.
+          <ThermalProgress value={answeredCount} max={total} label="Questions answered" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Answer every question, then submit. Your score and the correct answers appear after you submit.
           </p>
         </div>
       )}
 
-      <form onSubmit={submit} noValidate>
+      <form onSubmit={submit} noValidate className="grid gap-4">
         {attempt.questionOrder.map((qi, pos) => (
           <QuestionCard
             key={qi}
@@ -175,18 +182,14 @@ export default function QuizRunner({ quiz, next: nextStep }) {
         ))}
 
         {!submitted && (
-          <div className="d-flex flex-wrap align-items-center gap-3 mt-3">
-            <button type="submit" className="btn btn-flame">
-              <i className="bi bi-send me-1" /> Submit answers
-            </button>
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <Button type="submit" size="lg" className="h-12 rounded-full px-6 text-base">
+              <Send /> Submit answers
+            </Button>
             {showMissing && answeredCount < total && (
-              <span
-                className="small fw-semibold"
-                role="alert"
-                style={{ color: "var(--bad)" }}
-              >
-                {total - answeredCount} question
-                {total - answeredCount === 1 ? " is" : "s are"} still unanswered.
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-bad-text" role="alert">
+                <CircleAlert className="size-4" aria-hidden="true" />
+                {total - answeredCount} question{total - answeredCount === 1 ? " is" : "s are"} still unanswered.
               </span>
             )}
           </div>
@@ -194,13 +197,15 @@ export default function QuizRunner({ quiz, next: nextStep }) {
       </form>
 
       {submitted && (
-        <div className="d-flex flex-wrap justify-content-center gap-2 mt-4">
-          <button type="button" className="btn btn-flame" onClick={restart}>
-            <i className="bi bi-arrow-counterclockwise me-1" /> Retake quiz
-          </button>
-          <Link href="/quizzes" className="btn btn-outline-ink">
-            <i className="bi bi-grid me-1" /> All quizzes
-          </Link>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button className="rounded-full" onClick={restart}>
+            <RotateCcw /> Retake quiz
+          </Button>
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href="/quizzes">
+              <LayoutGrid /> All quizzes
+            </Link>
+          </Button>
         </div>
       )}
     </div>
@@ -210,91 +215,92 @@ export default function QuizRunner({ quiz, next: nextStep }) {
 function QuestionCard({ n, qIndex, q, optionOrder, answer, onAnswer, submitted, missing }) {
   const promptId = `quiz-q-${qIndex}-prompt`;
   const correct = submitted && isCorrect(q, answer);
-  const state = submitted
-    ? correct
-      ? "is-correct"
-      : "is-wrong"
-    : missing
-      ? "is-missing"
-      : "";
 
   return (
-    <fieldset id={`quiz-q-${qIndex}`} className={`card-soft flat quiz-question ${state}`}>
-      <div className="d-flex align-items-start justify-content-between gap-2 mb-3">
-        <legend id={promptId} className="quiz-prompt">
-          <span className="quiz-num">{n}.</span> {q.prompt}
+    <fieldset
+      id={`quiz-q-${qIndex}`}
+      className={cn(
+        "scroll-mt-40 rounded-2xl border-2 bg-surface p-5 sm:p-6",
+        submitted ? (correct ? "border-good/50" : "border-bad/50") : missing ? "border-bad" : "border-line",
+      )}
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <legend id={promptId} className="float-left font-semibold leading-relaxed text-ink">
+          <span className="mr-1 text-ember-text">{n}.</span> {q.prompt}
         </legend>
         {submitted && (
-          <span className={`quiz-mark ${correct ? "good" : "bad"}`}>
-            <i
-              className={`bi ${correct ? "bi-check-circle-fill" : "bi-x-circle-fill"} me-1`}
-              aria-hidden="true"
-            />
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold",
+              correct ? "bg-good-tint text-good-text" : "bg-bad-tint text-bad-text",
+            )}
+          >
+            {correct ? <CircleCheck className="size-3.5" aria-hidden="true" /> : <CircleX className="size-3.5" aria-hidden="true" />}
             {correct ? "1/1" : "0/1"}
           </span>
         )}
       </div>
 
       {q.type === "mc" ? (
-        <div className="d-grid gap-2" role="radiogroup" aria-labelledby={promptId}>
-          {optionOrder.map((origIdx, pos) => {
-            let cls = "quiz-option";
-            if (submitted) {
-              if (origIdx === q.a) cls += " correct";
-              else if (origIdx === answer) cls += " incorrect";
-            } else if (origIdx === answer) cls += " selected";
-            return (
-              <button
-                key={origIdx}
-                type="button"
-                role="radio"
-                aria-checked={origIdx === answer}
-                className={cls}
-                disabled={submitted}
-                onClick={() => onAnswer(origIdx)}
-              >
-                <span className="opt-key">{String.fromCharCode(65 + pos)}</span>
-                {q.options[origIdx]}
-                {submitted && origIdx === q.a && (
-                  <i className="bi bi-check-circle-fill ms-auto" aria-label="Correct answer" />
-                )}
-                {submitted && origIdx === answer && origIdx !== q.a && (
-                  <i className="bi bi-x-circle-fill ms-auto" aria-label="Your answer" />
-                )}
-              </button>
-            );
-          })}
+        <div className="clear-both grid gap-2" role="radiogroup" aria-labelledby={promptId}>
+          {optionOrder.map((origIdx, pos) => (
+            <QuizOption
+              key={origIdx}
+              index={pos}
+              role="radio"
+              aria-checked={origIdx === answer}
+              disabled={submitted}
+              onClick={() => onAnswer(origIdx)}
+              state={
+                submitted
+                  ? origIdx === q.a
+                    ? "correct"
+                    : origIdx === answer
+                      ? "incorrect"
+                      : "idle"
+                  : origIdx === answer
+                    ? "selected"
+                    : "idle"
+              }
+            >
+              {q.options[origIdx]}
+            </QuizOption>
+          ))}
         </div>
       ) : (
-        <div className="d-flex flex-wrap gap-2 align-items-center">
+        <div className="clear-both flex flex-wrap items-center gap-2">
           <input
-            className={`form-control-calphy ${submitted ? (correct ? "is-correct" : "is-wrong") : ""}`}
-            style={{ maxWidth: 240 }}
             type="text"
+            inputMode="decimal"
             placeholder="Your answer"
             aria-labelledby={promptId}
             value={answer ?? ""}
             disabled={submitted}
             onChange={(e) => onAnswer(e.target.value)}
+            className={cn(
+              "h-11 w-full max-w-60 rounded-xl border-2 bg-bg px-3.5 text-base text-ink tabular-nums outline-none focus:border-ember disabled:opacity-100",
+              submitted && (correct ? "border-good bg-good-tint" : "border-bad bg-bad-tint"),
+            )}
           />
-          <span className="text-muted fw-semibold">{q.unit}</span>
+          <span className="font-semibold text-muted-foreground">{q.unit}</span>
         </div>
       )}
 
-      {missing && (
-        <div className="small fw-semibold mt-2" style={{ color: "var(--bad)" }}>
-          This question needs an answer.
-        </div>
-      )}
+      {missing && <p className="mt-2 text-sm font-semibold text-bad-text">This question needs an answer.</p>}
 
       {submitted && (
-        <div className={`quiz-feedback ${correct ? "good" : "bad"}`}>
-          {!correct && (
-            <div className="mb-1">
-              Correct answer: <b>{formatCorrect(q)}</b>
-            </div>
+        <div
+          className={cn(
+            "mt-4 rounded-xl px-4 py-3 text-sm leading-relaxed text-ink",
+            correct ? "bg-good-tint" : "bg-ember-tint",
           )}
-          {q.explain}
+        >
+          {!correct && (
+            <p className="mb-1">
+              Correct answer: <strong className="text-ink">{formatCorrect(q)}</strong>
+            </p>
+          )}
+          <p>{q.explain}</p>
         </div>
       )}
     </fieldset>
@@ -302,20 +308,19 @@ function QuestionCard({ n, qIndex, q, optionOrder, answer, onAnswer, submitted, 
 }
 
 function ResultSummary({ quiz, score, total, pct, passed, isLoggedIn, nextStep, onRestart }) {
-  const lessonNames = quiz.lessons
-    .map((key) => `Lesson ${LESSON_BY_KEY[key].n}`)
-    .join(" & ");
+  const lessonNames = quiz.lessons.map((key) => `Lesson ${LESSON_BY_KEY[key].n}`).join(" & ");
   const verdict =
     pct >= 90
-      ? { icon: "bi-trophy-fill", text: "Outstanding! You've mastered this topic.", color: "var(--good)" }
+      ? { icon: Trophy, text: "Outstanding! You've mastered this topic.", className: "text-good-text" }
       : pct >= 70
-        ? { icon: "bi-award-fill", text: "Great job! A quick review and you'll hit 100%.", color: "var(--ember-text)" }
+        ? { icon: Award, text: "Great job! A quick review and you'll hit 100%.", className: "text-ember-text" }
         : pct >= 50
-          ? { icon: "bi-arrow-repeat", text: "Good start. Check the answers below and retry.", color: "var(--ember-text)" }
-          : { icon: "bi-book", text: "Time to re-read the lesson and play with the simulation. You've got this!", color: "var(--bad)" };
+          ? { icon: RefreshCw, text: "Good start. Check the answers below and retry.", className: "text-ember-text" }
+          : { icon: BookOpen, text: "Time to re-read the lesson and play with the simulation. You've got this!", className: "text-bad-text" };
+  const VerdictIcon = verdict.icon;
 
   return (
-    <div className="card-soft flat p-4 p-md-5 text-center mb-3 position-relative overflow-hidden">
+    <div className="relative mb-6 overflow-hidden rounded-3xl bg-surface p-6 text-center sm:p-10">
       {passed &&
         Array.from({ length: 24 }, (_, index) => (
           <span
@@ -326,81 +331,71 @@ function ResultSummary({ quiz, score, total, pct, passed, isLoggedIn, nextStep, 
               left: `${(index * 23) % 100}%`,
               width: `${6 + (index % 3) * 2}px`,
               height: `${8 + (index % 4) * 2}px`,
-              backgroundColor: [
-                "var(--ember)",
-                "var(--flame-glow)",
-                "var(--good)",
-                "var(--cool)",
-              ][index % 4],
+              backgroundColor: ["var(--ember)", "var(--flame-glow)", "var(--good)", "var(--cool)"][index % 4],
               animationDuration: `${2.2 + (index % 4) * 0.15}s`,
               animationDelay: `${(index % 6) * 0.08}s`,
             }}
           />
         ))}
-      <div className="d-flex justify-content-center mb-3">
-        <ProgressRing value={pct} size={160}>
-          <span className="score-num gradient-text">{pct}%</span>
-          <span className="text-muted small fw-semibold">
+      <div className="mb-5 flex justify-center">
+        <ProgressRing value={pct} size={168}>
+          <span className="text-thermal text-4xl font-extrabold tabular-nums">{pct}%</span>
+          <span className="text-sm font-semibold text-muted-foreground">
             {score}/{total} correct
           </span>
         </ProgressRing>
       </div>
-      <h3 className="fw-bold mb-1">
-        <i className={`bi ${verdict.icon} me-2`} style={{ color: verdict.color }} />
+      <h2 className="flex items-center justify-center gap-2 text-2xl font-extrabold text-ink">
+        <VerdictIcon className={cn("size-6", verdict.className)} aria-hidden="true" />
         {quiz.title} complete!
-      </h3>
-      <p className="text-muted mb-2">{verdict.text}</p>
-      <p className="small fw-semibold mb-3">
+      </h2>
+      <p className="mt-1 text-ink-soft">{verdict.text}</p>
+      <p className="mt-3 text-sm font-semibold">
         {passed ? (
-          <span style={{ color: "var(--good)" }}>
-            <i className="bi bi-check-circle-fill me-1" />
+          <span className="inline-flex items-center gap-1 text-good-text">
+            <CircleCheck className="size-4" aria-hidden="true" />
             {quiz.final ? "Final exam passed" : `${lessonNames} marked complete`}
           </span>
         ) : (
-          <span className="text-muted">
-            Score {PASS_PERCENT}% or higher to{" "}
-            {quiz.final ? "pass the final exam" : `complete ${lessonNames}`}
+          <span className="text-muted-foreground">
+            Score {PASS_PERCENT}% or higher to {quiz.final ? "pass the final exam" : `complete ${lessonNames}`}
           </span>
         )}
       </p>
 
-      <div className="d-flex flex-wrap justify-content-center gap-2 mb-4">
+      <div className="mt-4 flex justify-center">
         {isLoggedIn ? (
-          <span className="chip green">
-            <i className="bi bi-database-check" />
-            Score saved to your account
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-good-tint px-3 py-1 text-xs font-semibold text-good-text">
+            <DatabaseZap className="size-3.5" aria-hidden="true" /> Score saved to your account
           </span>
         ) : (
-          <Link href="/login" className="chip cool" style={{ cursor: "pointer" }}>
-            <i className="bi bi-cloud-arrow-up" /> Log in to sync scores
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 rounded-full bg-cool-tint px-3 py-1 text-xs font-semibold text-ink-soft hover:underline"
+          >
+            <CloudUpload className="size-3.5" aria-hidden="true" /> Log in to sync scores
           </Link>
         )}
       </div>
 
-      <div className="d-flex flex-wrap justify-content-center gap-2">
-        <Link
-          href={nextStep ? nextStep.href : "/dashboard"}
-          className={`btn ${passed ? "btn-flame" : "btn-outline-ink"}`}
-        >
-          {nextStep ? nextStep.label : "Go to dashboard"}{" "}
-          <i className="bi bi-arrow-right ms-1" />
-        </Link>
-        <button
-          type="button"
-          className={`btn ${passed ? "btn-outline-ink" : "btn-flame"}`}
-          onClick={onRestart}
-        >
-          <i className="bi bi-arrow-counterclockwise me-1" /> Retake quiz
-        </button>
-        {nextStep && (
-          <Link href="/dashboard" className="btn btn-ink">
-            <i className="bi bi-graph-up-arrow me-1" /> Dashboard
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <Button asChild variant={passed ? "default" : "outline"} className="rounded-full">
+          <Link href={nextStep ? nextStep.href : "/dashboard"}>
+            {nextStep ? nextStep.label : "Go to dashboard"} <ArrowRight />
           </Link>
+        </Button>
+        <Button variant={passed ? "outline" : "default"} className="rounded-full" onClick={onRestart}>
+          <RotateCcw /> Retake quiz
+        </Button>
+        {nextStep && (
+          <Button asChild variant="secondary" className="rounded-full">
+            <Link href="/dashboard">
+              <ChartNoAxesColumnIncreasing /> Dashboard
+            </Link>
+          </Button>
         )}
       </div>
-      <p className="small text-muted mt-3 mb-0">
-        Scroll down to review each question.
-      </p>
+      <p className="mt-4 text-sm text-muted-foreground">Scroll down to review each question.</p>
     </div>
   );
 }

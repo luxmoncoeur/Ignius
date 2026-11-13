@@ -8,8 +8,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Modal } from "react-bootstrap";
+import { CloudCheck } from "lucide-react";
 import { useUser } from "@/components/UserContext";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { hasProgress } from "@/lib/progress";
 
 const SESSION_KEY = "calphy-save-prompt-shown";
@@ -54,39 +63,34 @@ export default function SaveProgressPrompt() {
   const close = () => setShow(false);
 
   return (
-    <Modal
-      show={show && !isLoggedIn}
-      onHide={close}
-      centered
-      contentClassName="save-prompt"
-      aria-labelledby="save-prompt-title"
-    >
-      <Modal.Header closeButton>
-        <Modal.Title id="save-prompt-title" className="h5 fw-bold">
-          <i
-            className="bi bi-cloud-check me-2"
-            style={{ color: "var(--ember-text)" }}
-            aria-hidden="true"
-          />
-          Save your progress
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        You&apos;re learning as a guest, so your lessons and quiz scores are
-        kept on this device only. Log in or create a free account to keep them
-        on your dashboard wherever you sign in.
-      </Modal.Body>
-      <Modal.Footer>
-        <button type="button" className="btn btn-outline-ink" onClick={close}>
-          Maybe later
-        </button>
-        <Link href="/register" className="btn btn-outline-ink" onClick={close}>
-          Sign up
-        </Link>
-        <Link href="/login" className="btn btn-flame" onClick={close}>
-          Log in
-        </Link>
-      </Modal.Footer>
-    </Modal>
+    <Dialog open={show && !isLoggedIn} onOpenChange={setShow}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-lg font-bold text-ink">
+            <CloudCheck className="size-5 text-ember-text" aria-hidden="true" />
+            Save your progress
+          </DialogTitle>
+          <DialogDescription className="leading-relaxed text-ink-soft">
+            You&apos;re learning as a guest, so your lessons and quiz scores are kept on this device only.
+            Log in or create a free account to keep them on your dashboard wherever you sign in.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" className="rounded-full" onClick={close}>
+            Maybe later
+          </Button>
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href="/register" onClick={close}>
+              Sign up
+            </Link>
+          </Button>
+          <Button asChild className="rounded-full">
+            <Link href="/login" onClick={close}>
+              Log in
+            </Link>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

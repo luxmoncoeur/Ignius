@@ -5,9 +5,10 @@
 // re-capture them if a sim's look changes.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { SIM_GROUPS } from "@/lib/simulations";
+import { ArrowRight, ChevronLeft, ChevronRight, FlaskConical } from "lucide-react";
 import SectionHead from "@/components/SectionHead";
-import ScrollFloat from "@/components/ScrollFloat";
+import { Button } from "@/components/ui/button";
+import { SIM_GROUPS } from "@/lib/simulations";
 
 const SIMS = SIM_GROUPS.flatMap((g) => g.sims);
 
@@ -36,69 +37,76 @@ export default function SimPreviewStrip() {
     const strip = stripRef.current;
     const card = strip.querySelector("li");
     const step = card ? card.getBoundingClientRect().width + 16 : 300;
-    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)")
-      .matches;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     strip.scrollBy({ left: dir * step, behavior: smooth ? "smooth" : "auto" });
   };
 
   return (
-    <section className="learn-section" aria-labelledby="sim-strip-title">
+    <section className="tw" aria-labelledby="sim-strip-title">
       <SectionHead
         id="sim-strip-title"
-        icon="bi-joystick"
-        tag="Multimedia lab"
+        icon={FlaskConical}
+        tag="Simulation lab"
         title={
-          <ScrollFloat
-            as="span"
-            effect="float"
-            distance={40}
-            animationDuration={0.8}
-          >
-            Don&apos;t just read physics. Touch it.
-          </ScrollFloat>
+          <>
+            Don&apos;t just read physics. <span className="text-ember-text">Touch it.</span>
+          </>
         }
         sub="Every lesson has a simulation that runs in your browser. Pick one to jump straight in."
         actions={
           <>
-            <Link href="/simulations" className="small fw-semibold me-1">
-              Open the lab
-            </Link>
-            <button
-              type="button"
-              className="sim-strip-nav d-none d-md-inline-flex"
+            <Button asChild variant="ghost" className="rounded-full text-ember-text">
+              <Link href="/simulations">
+                Open the lab <ArrowRight />
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden size-10 rounded-full md:inline-flex"
               onClick={() => page(-1)}
               disabled={edges.start}
               aria-label="Previous simulations"
             >
-              <i className="bi bi-chevron-left" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="sim-strip-nav d-none d-md-inline-flex"
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden size-10 rounded-full md:inline-flex"
               onClick={() => page(1)}
               disabled={edges.end}
               aria-label="Next simulations"
             >
-              <i className="bi bi-chevron-right" aria-hidden="true" />
-            </button>
+              <ChevronRight />
+            </Button>
           </>
         }
       />
-      <ul ref={stripRef} className="sim-strip list-unstyled mb-0">
-        {SIMS.map((s) => (
-          <li key={s.anchor}>
-            <Link href={`/simulations#${s.anchor}`} className="sim-preview">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/images/sims/${s.anchor}.jpg`}
-                alt=""
-                loading="lazy"
-                width={720}
-                height={315}
-              />
-              <span className="sim-preview-body">
-                <span className="sim-preview-title">{s.title}</span>
-                <span className="sim-preview-lesson">{s.lesson}</span>
+      <ul
+        ref={stripRef}
+        className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:thin] sm:-mx-6 sm:scroll-px-6 sm:px-6"
+      >
+        {SIMS.map((sim) => (
+          <li key={sim.anchor} className="w-[min(78vw,20rem)] shrink-0 snap-start">
+            <Link
+              href={`/simulations#${sim.anchor}`}
+              className="group block h-full overflow-hidden rounded-2xl bg-surface no-underline shadow-xs transition-[border-color,box-shadow] duration-200 hover:border-ember hover:shadow-md"
+            >
+              <span className="block overflow-hidden bg-stage">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/images/sims/${sim.anchor}.jpg`}
+                  alt=""
+                  loading="lazy"
+                  width={720}
+                  height={315}
+                  className="aspect-[16/7] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+              </span>
+              <span className="block p-4">
+                <span className="block font-bold leading-snug text-ink">{sim.title}</span>
+                <span className="mt-0.5 block text-sm text-muted-foreground">{sim.lesson}</span>
               </span>
             </Link>
           </li>

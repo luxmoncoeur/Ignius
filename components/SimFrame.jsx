@@ -14,8 +14,8 @@ const ThreeStage = dynamic(() => import("@/components/sims/ThreeStage"), {
   loading: () => (
     <div className="three-stage">
       <div className="three-overlay" role="status">
-        <div className="spinner-border text-warning mb-2" aria-hidden="true" />
-        <div className="small">Building the 3D view…</div>
+        <span className="mb-2 inline-block size-6 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" aria-hidden="true" />
+        <div className="text-sm">Building the 3D view…</div>
       </div>
     </div>
   ),

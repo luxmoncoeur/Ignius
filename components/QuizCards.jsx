@@ -1,65 +1,74 @@
 "use client";
 
-// Quiz hub cards with saved scores.
+// Quiz hub cards with saved scores. The final exam spans the full row.
 import Link from "next/link";
-import { QUIZZES, quizLabel } from "@/lib/quizzes";
+import { ArrowRight, GraduationCap, Trophy } from "lucide-react";
 import { useUser } from "@/components/UserContext";
+import { QUIZZES, quizLabel, PASS_PERCENT } from "@/lib/quizzes";
 import { quizScore, quizStatus } from "@/lib/progress";
-import Reveal from "@/components/Reveal";
+import { DataIcon } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 
 export default function QuizCards() {
   const { progress } = useUser();
 
   return (
-    <div className="row g-3">
-      {QUIZZES.map((q, i) => {
-        const score = quizScore(progress, q.id);
-        const status = quizStatus(progress, q.id);
+    <ul className="tw grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {QUIZZES.map((quiz) => {
+        const score = quizScore(progress, quiz.id);
+        const finished = quizStatus(progress, quiz.id) === "Finished";
+        const passed = finished && score >= PASS_PERCENT;
         return (
-          <div className={q.final ? "col-12" : "col-md-6 col-xl-4"} key={q.id}>
-            <Reveal delay={i * 60} className="h-100">
-              <Link
-                href={`/quizzes/${q.slug}`}
-                className="text-reset h-100 d-block"
+          <li key={quiz.id} className={cn(quiz.final && "md:col-span-2 xl:col-span-3")}>
+            <Link
+              href={`/quizzes/${quiz.slug}`}
+              className={cn(
+                "group relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl bg-surface p-5 no-underline shadow-xs transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-ember hover:shadow-md",
+                quiz.final && "sm:flex-row sm:items-center sm:gap-5 sm:p-6",
+              )}
+            >
+              <span
+                className={cn(
+                  "grid shrink-0 place-items-center rounded-xl bg-ember-tint text-ember-text",
+                  quiz.final ? "size-14" : "size-11",
+                )}
+                aria-hidden="true"
               >
-                <div className="card-soft hover-card p-4 h-100 d-flex flex-column">
-                  <div className="d-flex align-items-center gap-3 mb-2">
-                    <span
-                      className="icon-tile"
-                      style={{
-                        background: "var(--ember-tint)",
-                        color: "var(--ember-text)",
-                      }}
-                    >
-                      <i className={`bi ${q.icon}`} />
-                    </span>
-                    <div>
-                      <h3 className="fw-bold h5 mb-0">{q.title}</h3>
-                      <div className="small text-muted">
-                        {quizLabel(q.id)} · {q.questions.length} questions
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-muted small flex-grow-1">
-                    {q.description}
-                  </p>
-                  <div>
-                    {status === "Finished" ? (
-                      <span className="chip green">
-                        <i className="bi bi-trophy" /> best: {score}%
-                      </span>
-                    ) : (
-                      <span className="chip flame">
-                        <i className="bi bi-play-circle" /> Start quiz
-                      </span>
+                {quiz.final ? <GraduationCap className="size-7" /> : <DataIcon name={quiz.icon} className="size-5" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold text-muted-foreground">
+                  {quizLabel(quiz.id)} · {quiz.questions.length} questions
+                </span>
+                <span className={cn("block font-bold leading-snug text-ink", quiz.final ? "text-xl" : "text-lg")}>
+                  {quiz.title}
+                </span>
+                <span className="mt-1 line-clamp-2 block text-sm leading-relaxed text-ink-soft">
+                  {quiz.description}
+                </span>
+              </span>
+              <span className="mt-auto flex items-center justify-between gap-2 sm:mt-0">
+                {finished ? (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
+                      passed ? "bg-good-tint text-good-text" : "bg-surface-2 text-ink-soft",
                     )}
-                  </div>
-                </div>
-              </Link>
-            </Reveal>
-          </div>
+                  >
+                    <Trophy className="size-3.5" aria-hidden="true" /> Best {score}%
+                  </span>
+                ) : (
+                  <span className="text-sm font-semibold text-ember-text">Start quiz</span>
+                )}
+                <ArrowRight
+                  className="size-4 text-ember-text transition-transform group-hover:translate-x-0.5 sm:ml-3"
+                  aria-hidden="true"
+                />
+              </span>
+            </Link>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

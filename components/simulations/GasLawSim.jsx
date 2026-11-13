@@ -229,7 +229,8 @@ export default function GasLawSim() {
       // ---------- pressure gauge ----------
       const gx = stacked ? (cylX + cylW + w) / 2 : w * 0.72,
         gy = Z * 0.3,
-        gr = stacked ? Math.min(60, (w - cylX - cylW) / 2 - 12) : Math.min(74, w * 0.13);
+        // a narrow or not-yet-measured canvas can make the stacked width negative
+        gr = Math.max(8, stacked ? Math.min(60, (w - cylX - cylW) / 2 - 12) : Math.min(74, w * 0.13));
       const PkPa = P / 1000;
       const PmaxK = (N_MOL * R * T_MAX) / (V_MIN / 1000) / 1000;
       const ang = -Math.PI * 0.75 + clamp(PkPa / PmaxK, 0, 1) * Math.PI * 1.5;

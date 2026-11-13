@@ -1,23 +1,15 @@
-import { Container } from "react-bootstrap";
 import AuthForm from "@/components/AuthForm";
-import Reveal from "@/components/Reveal";
+import { Page } from "@/components/PageHeader";
 
 export const metadata = {
   title: "Register",
-  description:
-    "Create an Ignius account and save your quiz scores to PostgreSQL.",
+  description: "Create an Ignius account to save lesson progress and quiz scores.",
 };
 
 export default function RegisterPage() {
   return (
-    <div className="page-top-space">
-      <section className="section-tight pb-5">
-        <Container>
-          <Reveal>
-            <AuthForm mode="register" />
-          </Reveal>
-        </Container>
-      </section>
-    </div>
+    <Page className="pt-28">
+      <AuthForm mode="register" />
+    </Page>
   );
 }

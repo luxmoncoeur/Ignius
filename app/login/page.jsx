@@ -1,22 +1,15 @@
-import { Container } from "react-bootstrap";
 import AuthForm from "@/components/AuthForm";
-import Reveal from "@/components/Reveal";
+import { Page } from "@/components/PageHeader";
 
 export const metadata = {
   title: "Log in",
-  description: "Log in to sync your Ignius progress to the database.",
+  description: "Log in to sync your Ignius progress to your account.",
 };
 
 export default function LoginPage() {
   return (
-    <div className="page-top-space">
-      <section className="section-tight pb-5">
-        <Container>
-          <Reveal>
-            <AuthForm mode="login" />
-          </Reveal>
-        </Container>
-      </section>
-    </div>
+    <Page className="pt-28">
+      <AuthForm mode="login" />
+    </Page>
   );
 }
