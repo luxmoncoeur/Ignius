@@ -1,0 +1,73 @@
+name: CI
+
+# Uses the reusable workflows from luxmoncoeur/ci-cd-template, pinned to v1.1.0 by commit SHA.
+#
+#   pull_request:  checks ─┐
+#                  release-preview (PR title check + "this PR would release vX.Y.Z") ─┴─> ci  (required check)
+#   push to main:  checks ──> ci ──> release (semantic-release: version, CHANGELOG, tag, GitHub Release)
+#
+# deploy.yml waits for this workflow by its name, "CI". Rename both together.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: luxmoncoeur/ci-cd-template/.github/workflows/ci-reusable.yml@f565ab7aaf47e3e64c5a04b8f70abf6663f62b47 # v1.1.0
+    with:
+      node-version: "22"
+      package-manager: pnpm
+
+  release-preview:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: luxmoncoeur/ci-cd-template/.github/workflows/release-reusable.yml@f565ab7aaf47e3e64c5a04b8f70abf6663f62b47 # v1.1.0
+    with:
+      dry-run: true
+
+  # The one required status check for branch protection.
+  ci:
+    needs: [checks, release-preview]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: All checks passed?
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          CHECKS: ${{ needs.checks.result }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          bad=$(echo "$NEEDS" | jq '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled")] | length')
+          if [ "$CHECKS" != "success" ] || [ "$bad" != "0" ]; then
+            echo "::error title=CI failed::One or more required jobs did not succeed."
+            exit 1
+          fi
+
+  release:
+    needs: [ci]
+    if: >-
+      !cancelled() && needs.ci.result == 'success'
+      && github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    uses: luxmoncoeur/ci-cd-template/.github/workflows/release-reusable.yml@f565ab7aaf47e3e64c5a04b8f70abf6663f62b47 # v1.1.0
+    secrets:
+      deploy-key: ${{ secrets.RELEASE_DEPLOY_KEY }}

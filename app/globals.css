@@ -1,0 +1,286 @@
+/*
+ * Cascade order: Tailwind theme/base, then the trimmed Bootstrap the simulations
+ * still use (vendor/bootstrap-lite.css) and the pre-v2 styles
+ * (legacy.css), then Tailwind components/utilities. Utilities always win, so a
+ * component can move to Tailwind + shadcn before its old CSS is deleted.
+ * Delete a legacy rule as soon as nothing uses its class (R-33).
+ */
+@layer theme, base, bootstrap, legacy, reset, components, utilities;
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./vendor/bootstrap-lite.css" layer(bootstrap);
+@import "./legacy.css" layer(legacy);
+
+/*
+ * Migrated components put `tw` on their root (and the shadcn overlays carry it
+ * too). Inside it, Bootstrap/legacy element defaults (p and heading margins,
+ * list padding, link colors) are reset, the way Tailwind preflight would.
+ * Remove this layer together with Bootstrap.
+ */
+@layer reset {
+  :is(.tw, .tw *):is(p, h1, h2, h3, h4, h5, h6, ul, ol, dl, dd, figure, blockquote, pre) {
+    margin: 0;
+  }
+  :is(.tw, .tw *):is(ul, ol) {
+    padding: 0;
+    list-style: none;
+  }
+  :is(.tw, .tw *):is(h1, h2, h3, h4, h5, h6) {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+  }
+  :is(.tw, .tw *):is(a) {
+    color: inherit;
+    text-decoration: inherit;
+  }
+}
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: light;
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-2: #e2e8f0;
+  --line: #cbd5e1;
+  --ink: #090d16;
+  --ink-soft: #1e293b;
+  --muted: #475569;
+  --ember: #ea580c;
+  --ember-hover: #c2410c;
+  --ember-text: #c2410c;
+  --ember-tint: #fff7ed;
+  --flame-glow: #f59e0b;
+  --cool: #0284c7;
+  --cool-hover: #0369a1;
+  --cool-tint: #f0f9ff;
+  --good: #059669;
+  --good-tint: #ecfdf5;
+  --good-text: #047857;
+  --bad: #dc2626;
+  --bad-tint: #fef2f2;
+  --bad-text: #b91c1c;
+  --stage: #0b1220;
+  --footer-bg: #0b1220;
+  /* cold → hot. Fills use the bright stops; text uses darker ones so it passes 4.5:1 */
+  --thermal: linear-gradient(90deg, #0284c7 0%, #f59e0b 55%, #ea580c 100%);
+  /* gradient text: blue → orange only, with a short crossover so the middle never turns grey */
+  --thermal-text: linear-gradient(90deg in oklab, #0369a1 0%, #0369a1 42%, #c2410c 62%, #c2410c 100%);
+  --radius-card: 0.75rem;
+  --radius-button: 0.5rem;
+  --radius-small: 0.4rem;
+  --shadow-soft: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --shadow-lift: 0 10px 25px -4px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 0 16px rgba(234, 88, 12, 0.2);
+  /* Interaction Design - Timings & Easings */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --font-sans: var(--font-jakarta), "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --bs-body-color: var(--ink-soft);
+  --bs-body-bg: var(--bg);
+  --bs-emphasis-color: var(--ink);
+  --bs-secondary-color: var(--muted);
+  --bs-tertiary-color: var(--muted);
+  --bs-border-color: var(--line);
+  --bs-secondary-bg: var(--surface-2);
+  --bs-tertiary-bg: var(--surface-2);
+  --bs-primary: var(--ember);
+  --bs-primary-rgb: 234, 88, 12;
+  --bs-link-color: var(--cool);
+  --bs-link-hover-color: var(--cool-hover);
+  --bs-form-control-color: var(--ink-soft);
+  --bs-form-control-bg: var(--surface);
+  --bs-form-control-border-color: var(--line);
+  --bs-form-control-focus-border-color: var(--ember);
+  --bs-form-select-color: var(--ink-soft);
+  --bs-form-select-bg: var(--surface);
+  --bs-form-select-border-color: var(--line);
+  --bs-form-range-track-bg: var(--line);
+  --bs-form-range-thumb-bg: var(--ember);
+  --bs-form-range-thumb-active-bg: var(--ember-hover);
+  --bs-form-range-thumb-focus-box-shadow:
+    0 0 0 1px var(--bg), 0 0 0 0.25rem var(--ember-tint);
+  --bs-table-color: var(--ink-soft);
+  --bs-table-bg: var(--surface);
+  --bs-table-border-color: var(--line);
+  --bs-progress-bg: var(--surface-2);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b0f17;
+  --surface: #111827;
+  --surface-2: #1e293b;
+  --line: #334155;
+  --ink: #f8fafc;
+  --ink-soft: #cbd5e1;
+  --muted: #94a3b8;
+  --ember: #ea580c;
+  --ember-hover: #c2410c;
+  --ember-text: #fb923c;
+  --ember-tint: rgba(249, 115, 22, 0.15);
+  --flame-glow: #f59e0b;
+  --cool: #38bdf8;
+  --cool-hover: #7dd3fc;
+  --cool-tint: rgba(56, 189, 248, 0.15);
+  --good: #34d399;
+  --good-tint: rgba(52, 211, 153, 0.15);
+  --good-text: #6ee7b7;
+  --bad: #f87171;
+  --bad-tint: rgba(248, 113, 113, 0.15);
+  --bad-text: #fca5a5;
+  --stage: #070a10;
+  --footer-bg: #070a10;
+  --thermal: linear-gradient(90deg, #38bdf8 0%, #f59e0b 55%, #f97316 100%);
+  --thermal-text: linear-gradient(90deg in oklab, #38bdf8 0%, #38bdf8 42%, #fb923c 62%, #fb923c 100%);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lift: 0 10px 30px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-glow: 0 0 20px rgba(249, 115, 22, 0.25);
+  --bs-primary-rgb: 249, 115, 22;
+}
+
+/* shadcn/ui names mapped straight onto the Ignius tokens above */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink-soft);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink-soft);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink-soft);
+  --color-primary: var(--ember-hover);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--bad);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--ember-text);
+  --color-chart-1: var(--cool);
+  --color-chart-2: var(--flame-glow);
+  --color-chart-3: var(--ember);
+  --color-chart-4: var(--good);
+  --color-chart-5: var(--muted);
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ember: var(--ember);
+  --color-ember-hover: var(--ember-hover);
+  --color-ember-text: var(--ember-text);
+  --color-ember-tint: var(--ember-tint);
+  --color-flame: var(--flame-glow);
+  --color-cool: var(--cool);
+  --color-cool-tint: var(--cool-tint);
+  --color-good: var(--good);
+  --color-good-tint: var(--good-tint);
+  --color-good-text: var(--good-text);
+  --color-bad: var(--bad);
+  --color-bad-tint: var(--bad-tint);
+  --color-bad-text: var(--bad-text);
+  --color-stage: var(--stage);
+
+  --font-sans: var(--font-jakarta), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-mono);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility bg-thermal {
+  background-image: var(--thermal);
+}
+
+@utility text-thermal {
+  background-image: var(--thermal-text);
+  box-decoration-break: slice;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* thermometer-scale ticks: a minor tick every 10%, a major one every 50% */
+@utility bg-ticks {
+  background-image:
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink) 22%, transparent) 0 1px, transparent 1px 10%),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--ink) 35%, transparent) 0 2px, transparent 2px 50%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Markdown inside Cinder's answers (components/CalphyChat.jsx) */
+@layer components {
+  .cinder-md > * + * {
+    margin-top: 0.6em;
+  }
+  .cinder-md :is(ul, ol) {
+    padding-left: 1.25em;
+  }
+  .cinder-md ul {
+    list-style: disc;
+  }
+  .cinder-md ol {
+    list-style: decimal;
+  }
+  .cinder-md li + li {
+    margin-top: 0.2em;
+  }
+  .cinder-md li::marker {
+    color: var(--ember-text);
+  }
+  .cinder-md strong {
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .cinder-md :is(h1, h2, h3, h4) {
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .cinder-md code {
+    border-radius: 0.3rem;
+    background: var(--surface-2);
+    padding: 0.05em 0.35em;
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+  }
+  .cinder-md :is(th, td) {
+    border-bottom: 1px solid var(--line);
+    padding: 0.35rem 0.6rem;
+    text-align: left;
+  }
+  .cinder-md th {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  .cinder-md .katex-display {
+    margin: 0.4em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+}
